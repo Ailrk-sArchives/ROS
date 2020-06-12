@@ -28,7 +28,6 @@ pub struct Context {
 }
 
 // state of each CPU
-#[repr(C)]
 pub struct Cpu<'a> {
     proc: Option<&'a mut Proc<'a>>, // the process run on cpu.
     scheduler: Context,             // switch to enter scheduler.
@@ -51,7 +50,6 @@ type Cpus<'a> = [Cpu<'a>; params::NCPU];
 // the trapframe incldues callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through the
 // entire knernel call stack.
-
 #[repr(C)]
 pub struct Trapframe {
     kernel_satp: u64,   // kernal page table
@@ -98,7 +96,6 @@ pub struct Trapframe {
     t6: u64,
 }
 
-#[repr(C)]
 pub enum ProcState {
     Unused,
     Sleeping,
@@ -107,7 +104,14 @@ pub enum ProcState {
     Zombie,
 }
 
-#[repr(C)]
+// maintain important states for process.
+// page table:      map from virtual address space to physical space
+// knernel stack:   stack on kernel space for system call.
+//                  - in riscv `ecall` make a syscall, which raise the hardware
+//                    privilege level and change `pc` to knernel defined entry point.
+//                    when syscall finished, kernel will switch back to user space by
+//                    calling `sret` (lower hw privilege).
+// run state.       for scheduling
 pub struct Proc<'a> {
     pub lock: spinlock::SpinLock<'a>,
 
@@ -117,7 +121,7 @@ pub struct Proc<'a> {
     pub xstate: bool,         // exit status
     pub pid: i32,             // process id
 
-    kstack: u64,                               // bottom of kernal stack for the proc
+    kstack: u64,                               // bottom of kernal stack for the process
     sz: usize,                                 // size of proces mem
     pagetable: Pagetable<'a>,                  // page table
     tf: &'a mut Trapframe,                     // data page for trampoline.S

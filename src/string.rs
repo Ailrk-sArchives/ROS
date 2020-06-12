@@ -1,4 +1,4 @@
-// <string.h> style string library.
+// <string.h> style string library. can be called from c code directly.
 use core::mem;
 use core::slice;
 
@@ -17,7 +17,6 @@ pub extern "C" fn memcmp<T>(dst: *const T) {}
 
 #[no_mangle]
 pub extern "C" fn memmove<T>(dst: *const T) {}
-
 
 #[no_mangle]
 pub extern "C" fn strlen(s: *const c_char) -> isize {
