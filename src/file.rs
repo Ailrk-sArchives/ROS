@@ -9,13 +9,13 @@ pub enum FileType {
 
 pub struct File<'a> {
     pub tp: FileType,
-    pub refc: u32, // reference count.
+    pub refc: i32, // reference count.
     pub readable: bool,
     pub writable: bool,
     pub pipe: &'a pipe::Pipe<'a>, // FdPipe
     pub ip: &'a mut Inode,        // FdInode and FdDevice
     pub off: u32,                 // FdInode
-    pub major: u16,               // FdDevice
+    pub major: i16,               // FdDevice
 }
 
 // in-memory copy of an inode

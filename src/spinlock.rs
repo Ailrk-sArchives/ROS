@@ -6,7 +6,7 @@ pub struct SpinLock<'a> {
     pub cpu: &'a proc::Cpu<'a>,
 }
 
-pub impl SpinLock<'a> {
+impl<'a> SpinLock<'a> {
 
     pub fn new<'b>() -> SpinLock<'b> {
 

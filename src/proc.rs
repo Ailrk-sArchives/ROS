@@ -1,9 +1,13 @@
+// process and scheduling
+// process -- unit of isolation.
+
+use super::file::{File, Inode};
 use super::params;
-use super::file;
-use super::riscv;
+use super::riscv::Pagetable;
 use super::spinlock;
 
 // registers for context swithing.
+#[repr(C)]
 pub struct Context {
     ra: u64,
     sp: u64,
@@ -24,11 +28,12 @@ pub struct Context {
 }
 
 // state of each CPU
+#[repr(C)]
 pub struct Cpu<'a> {
     proc: Option<&'a mut Proc<'a>>, // the process run on cpu.
     scheduler: Context,             // switch to enter scheduler.
-    noff: u32,                      // depth of push_off() nesting.
-    intena: u32,                    // interrups flag
+    noff: i32,                      // depth of push_off() nesting.
+    intena: i32,                    // interrups flag
 }
 
 type Cpus<'a> = [Cpu<'a>; params::NCPU];
@@ -46,6 +51,8 @@ type Cpus<'a> = [Cpu<'a>; params::NCPU];
 // the trapframe incldues callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through the
 // entire knernel call stack.
+
+#[repr(C)]
 pub struct Trapframe {
     kernel_satp: u64,   // kernal page table
     kernel_sp: u64,     // top of process's kernal stack
@@ -91,6 +98,7 @@ pub struct Trapframe {
     t6: u64,
 }
 
+#[repr(C)]
 pub enum ProcState {
     Unused,
     Sleeping,
@@ -99,6 +107,7 @@ pub enum ProcState {
     Zombie,
 }
 
+#[repr(C)]
 pub struct Proc<'a> {
     pub lock: spinlock::SpinLock<'a>,
 
@@ -106,16 +115,14 @@ pub struct Proc<'a> {
     pub procstate: ProcState, // process state
     pub killed: bool,         // kill flag
     pub xstate: bool,         // exit status
-    pub pid: u32,             // process id
+    pub pid: i32,             // process id
 
-    kstack: u64,                                   // bottom of kernal stack for the proc
-    sz: usize,                                     // size of proces mem
-    pagetable: riscv::Pagetable<'a>,               // page table
-    tf: &'a mut Trapframe,                         // data page for trampoline.S
-    context: Context,                              // switch() here to run process
-    ofile: &'a mut [file::File<'a>; params::NOFILE], // open files
-    cwd: &'a mut file::Inode,                      // current directory.
-    name: [u8; 16],                                // proc name (debugging)
+    kstack: u64,                               // bottom of kernal stack for the proc
+    sz: usize,                                 // size of proces mem
+    pagetable: Pagetable<'a>,                  // page table
+    tf: &'a mut Trapframe,                     // data page for trampoline.S
+    context: Context,                          // switch() here to run process
+    ofile: &'a mut [File<'a>; params::NOFILE], // open files
+    cwd: &'a mut Inode,                        // current directory.
+    name: [u8; 16],                            // proc name (debugging)
 }
-
-
