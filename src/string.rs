@@ -1,5 +1,5 @@
 // <string.h> style string library. can be called from c code directly.
-use core::mem;
+use core::ffi::c_void;
 use core::slice;
 
 // c char is signed 8 bit integer.
@@ -7,16 +7,40 @@ use core::slice;
 pub type c_char = i8;
 
 #[no_mangle]
-pub extern "C" fn memset<T>(dst: *const T) {}
+pub extern "C" fn memset(dst: *mut c_void, c: c_char, n: usize) -> *mut c_void {
+    let cdst = dst as *mut c_char;
+    let n = n as isize;
+    (0..n).map(|i| {
+        *cdst.offset(i) = c;
+    });
+    dst
+}
 
 #[no_mangle]
-pub extern "C" fn memcpy<T>(dst: *const T) {}
+pub extern "C" fn memcmp(v1: *const c_void, v2: *const c_void, n: usize) -> i32 {
+    let s1 = slice::from_raw_parts(v1 as *const c_char, n);
+    let s2 = slice::from_raw_parts(v2 as *const c_char, n);
+    for (a, b) in s1.iter().zip(s2.iter()) {
+        let diff = *a - *b;
+        if diff != 0 { return diff as i32; }
+    }
+    0
+}
 
 #[no_mangle]
-pub extern "C" fn memcmp<T>(dst: *const T) {}
+pub extern "C" fn memcpy(dst: *mut c_void, src: *const c_void, n: usize) -> *mut c_void {
+    let s1 = slice::from_raw_parts_mut(dst as *mut c_char, n);
+    let s2 = slice::from_raw_parts_mut(src as *mut c_char, n);
+    for (a, b) in s1.iter().zip(s2.iter()) {
+        *a = *b;
+    }
+    dst
+}
 
 #[no_mangle]
-pub extern "C" fn memmove<T>(dst: *const T) {}
+pub extern "C" fn memmove(dst: *mut c_void, src: *const c_void, n: usize) -> *mut c_void {
+    memcpy(dst, src, n)
+}
 
 #[no_mangle]
 pub extern "C" fn strlen(s: *const c_char) -> isize {

@@ -130,3 +130,19 @@ pub struct Proc<'a> {
     cwd: &'a mut Inode,                        // current directory.
     name: [u8; 16],                            // proc name (debugging)
 }
+
+impl<'a> Proc<'a> {
+    fn new() -> Proc<'a> {
+        unimplemented!();
+    }
+
+
+}
+
+pub fn cpuid() -> u32 {
+    unimplemented!();
+}
+
+pub fn mycpu<'a>() -> &'a Cpu<'a> {
+    unimplemented!();
+}

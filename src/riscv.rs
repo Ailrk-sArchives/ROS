@@ -32,6 +32,7 @@
 //        cause trap.
 //      - `M` is the only mandatory mode for riscv platform. all privilege
 //        granted.
+//
 // - Control and status register - CSR (mem mapped reg, 12 bit address)
 //      - its damn registers in the memory ...
 //      - some important regs.

@@ -132,10 +132,21 @@ _entry:
 #                                   // to instructin memory and instruction fetches
 #                                   // on the same hart.
 ######################################################################
+# // CSR instructions atomically read-modify-write a single CSR.
+# // all this operations are kinda bidirectional, and not evey intuitive.
 # csrrw rd, offset, rs1             // atomic read/write csr
+#                                   // 1. csr value will be read, then write into rd
+#                                   // 2. rs1 value will be read, then write into csr
+#                                   // 3. it do a value swap
+# // this two beheaves the same
 # csrrs rd, offset, rs1             // atomic read and set bits in csr
-# csrrc  rd, offset, rs1             // atomic read and clear bits in csr
-#
+#                                   // 1. csr value will be rad, then write to rd
+#                                   // 2. rs1 is treated as a bit mask that specifies
+#                                   //    what position to be set.
+# csrrc  rd, offset, rs1            // atomic read and clear bits in csr
+#                                   // 1. csr value will be rad, then write to rd
+#                                   // 2. rs1 is treated as a bit mask that specifies
+#                                   //    what position to be cleared.
 # csrrwi rd, offset, uimm
 # csrrsi rd, offset, uimm
 # csrrci rd, offset, uimm
