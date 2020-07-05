@@ -233,85 +233,108 @@ pub mod SSCRATCH {
 }
 
 // supervisor Trap cause
-#[inline]
-pub fn r_scause() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("csrr {}, scause", out(reg) x) }
-    x
+pub mod SCAUSE {
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64 = 0;
+        unsafe { asm!("csrr {}, scause", out(reg) x) }
+        x
+    }
 }
 
 // supervisor trap value
-#[inline]
-pub fn r_stval() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("csrr {}, stval", out(reg) x) }
-    x
+pub mod STVAL {
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64 = 0;
+        unsafe { asm!("csrr {}, stval", out(reg) x) }
+        x
+    }
 }
 
 // machine mode counter enable
-#[inline]
-pub fn w_mcounteren(x: u64) {
-    unsafe { asm!("csrw mcounteren, {}", in(reg) x) }
-}
+pub mod MCOUNTEREN {
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw mcounteren, {}", in(reg) x) }
+    }
 
-#[inline]
-pub fn r_mcounteren() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("csrr {}, mcounteren", out(reg) x) }
-    x
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64 = 0;
+        unsafe { asm!("csrr {}, mcounteren", out(reg) x) }
+        x
+    }
 }
 
 // machine mode cycle counter
-pub fn r_time() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("csrr {}, time", out(reg) x) }
-    x
+pub mod TIME {
+    pub fn read() -> u64 {
+        let mut x: u64 = 0;
+        unsafe { asm!("csrr {}, time", out(reg) x) }
+        x
+    }
 }
 
-// enable device interrupts
-pub fn intr_on() {
-    SIE::write(SIE::read() | SIE::SEIE | SIE::STIE | SIE::SSIE);
-    SSTATUS::write(SSTATUS::read() | SSTATUS::SIE);
+pub mod DEV_INTR {
+    // enable device interrupts
+    use super::SIE;
+    use super::SSTATUS;
+
+    pub fn on() {
+        SIE::write(SIE::read() | SIE::SEIE | SIE::STIE | SIE::SSIE);
+        SSTATUS::write(SSTATUS::read() | SSTATUS::SIE);
+    }
+
+    // disable device interrupts
+    pub fn off() {
+        SSTATUS::write(SSTATUS::read() & !SSTATUS::SIE);
+    }
+
+    // check if device interrupts is enabled
+    pub fn get() -> bool {
+        let x = SSTATUS::read();
+        (x & SSTATUS::SIE) != 0
+    }
 }
 
-// disable device interrupts
-pub fn intr_off() {
-    SSTATUS::write(SSTATUS::read() & !SSTATUS::SIE);
+pub mod REGS {
+    pub mod SP {
+        pub fn read() -> u64 {
+            let mut x: u64 = 0;
+            unsafe { asm!("mv {}, sp", out(reg) x) }
+            x
+        }
+    }
+
+    pub mod TP {
+        // read and write tp, the thread pointer
+        // tp holds this core's hartid, the index into cpus[].
+        pub fn read() -> u64 {
+            let mut x: u64 = 0;
+            unsafe { asm!("mv {}, tp", out(reg) x) }
+            x
+        }
+
+        pub fn write(x: u64) {
+            unsafe { asm!("mv tp, {}", in(reg) x) }
+        }
+    }
+
+    pub mod RA {
+        pub fn read() -> u64 {
+            let mut x: u64 = 0;
+            unsafe { asm!("mv {}, ra", out(reg) x) }
+            x
+        }
+    }
 }
 
-// check if device interrupts is enabled
-pub fn intr_get() -> bool {
-    let x = SSTATUS::read();
-    (x & SSTATUS::SIE) != 0
-}
-
-pub fn r_sp() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("mv {}, sp", out(reg) x) }
-    x
-}
-
-// read and write tp, the thread pointer
-// tp holds this core's hartid, the index into cpus[].
-pub fn r_tp() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("mv {}, tp", out(reg) x) }
-    x
-}
-
-pub fn w_tp(x: u64) {
-    unsafe { asm!("mv tp, {}", in(reg) x) }
-}
-
-pub fn r_ra() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("mv {}, ra", out(reg) x) }
-    x
-}
-
-// flush the TLB.
-pub fn sfence_vma() {
-    unsafe { asm!("sfence.vma zero, zero") }
+pub mod FENCE {
+    // flush the TLB.
+    pub fn sfence_vma() {
+        unsafe { asm!("sfence.vma zero, zero") }
+    }
 }
 
 pub mod PG {
