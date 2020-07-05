@@ -14,193 +14,365 @@
 //      Hypervisor: with hypearvior its possible to run multiple os.
 //      HBI:  ...
 //      HEE   ...
+
 // read hart id
-#[inline]
-pub fn r_mhartid() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, mhartid", out(reg) x) }
-    x
+pub mod MHARTID {
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, mhartid", out(reg) x) }
+        x
+    }
 }
 
 // mstatus. Machine Mode Status Register.
-pub const MSTATUS_MPP_MASK: u64 = 3 << 11; // pp: previous mode.
-pub const MSTATUS_MPP_M: u64 = 3 << 11; // set pp to machine-mode.
-pub const MSTATUS_MPP_S: u64 = 1 << 11; // set pp to supervisor-mode.
-pub const MSTATUS_MPP_U: u64 = 0 << 11; // set pp to user-mode.
-pub const MSTATUS_MIE: u64 = 1 << 3; // machine mode iterrupt enable.
+pub mod MSTATUS {
+    pub const MPP_MASK: u64 = 3 << 11; // pp: previous mode.
+    pub const MPP_M: u64 = 3 << 11; // set pp to machine-mode.
+    pub const MPP_S: u64 = 1 << 11; // set pp to supervisor-mode.
+    pub const MPP_U: u64 = 0 << 11; // set pp to user-mode.
+    pub const MIE: u64 = 1 << 3; // machine mode iterrupt enable.
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("cssr {}, mstatus", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn r_mstatus() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("cssr {}, mstatus", out(reg) x) }
-    x
-}
-
-#[inline]
-pub fn w_mstatus(x: u64) {
-    unsafe { asm!("csrw mstatus, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw mstatus, {}", in(reg) x) }
+    }
 }
 
 // mepc
 // machine exception program counter
 // holds the addr return to from an exception.
-#[inline]
-pub fn w_mepc(x: u64) {
-    unsafe { asm!("csrw mepc, {}", in(reg) x) }
+pub mod MEPC {
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw mepc, {}", in(reg) x) }
+    }
 }
 
 // sstatus, Supervior Status Register.
-pub const SSTATUS_SPP: u64 = 1 << 8; // previous mode. 1=supervisor 0=user
-pub const SSTATUS_SPIE: u64 = 1 << 5; // supervisor previous interrupt enable
-pub const SSTATUS_UPIE: u64 = 1 << 4; // user previous interrupt enable
-pub const SSTATUS_SIE: u64 = 1 << 1; // supervisor interrupt enable
-pub const SSTATUS_UIE: u64 = 1 << 1; // user interrupt enable
+pub mod SSTATUS {
+    pub const SPP: u64 = 1 << 8; // previous mode. 1=supervisor 0=user
+    pub const SPIE: u64 = 1 << 5; // supervisor previous interrupt enable
+    pub const UPIE: u64 = 1 << 4; // user previous interrupt enable
+    pub const SIE: u64 = 1 << 1; // supervisor interrupt enable
+    pub const UIE: u64 = 1 << 1; // user interrupt enable
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64 = 0;
+        unsafe { asm!("csrr {}, sstatus", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn r_sstatus() -> u64 {
-    let mut x: u64 = 0;
-    unsafe { asm!("csrr {}, sstatus", out(reg) x) }
-    x
-}
-
-#[inline]
-pub fn w_sstatus(x: u64) {
-    unsafe { asm!("csrw sstatus, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw sstatus, {}", in(reg) x) }
+    }
 }
 
 // supervisor Interrupt pending
-#[inline]
-pub fn r_sip() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, sip", out(reg) x) }
-    x
-}
+pub mod SIP {
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, sip", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_sip(x: u64) {
-    unsafe { asm!("csrw sip, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw sip, {}", in(reg) x) }
+    }
 }
 
 // supervisor interrupt enable
-pub const SIE_SEIE: u64 = 1 << 9;
-pub const SIE_STIE: u64 = 1 << 5;
-pub const SIE_SSIE: u64 = 1 << 1;
+pub mod SIE {
+    pub const SEIE: u64 = 1 << 9;
+    pub const STIE: u64 = 1 << 5;
+    pub const SSIE: u64 = 1 << 1;
 
-#[inline]
-pub fn r_sie() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, sie", out(reg) x) }
-    x
-}
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, sie", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_sie(x: u64) {
-    unsafe { asm!("csrw sie, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw sie, {}", in(reg) x) }
+    }
 }
 
 // macine mode interrupt enable
-pub const MIE_MEIE: u64 = 1 << 9;
-pub const MIE_MTIE: u64 = 1 << 5;
-pub const MIE_MSIE: u64 = 1 << 1;
+pub mod MIE {
+    pub const MEIE: u64 = 1 << 9;
+    pub const MTIE: u64 = 1 << 5;
+    pub const MSIE: u64 = 1 << 1;
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, mie", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn r_mie() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, mie", out(reg) x) }
-    x
-}
-
-#[inline]
-pub fn w_mie(x: u64) {
-    unsafe { asm!("csrw mie, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw mie, {}", in(reg) x) }
+    }
 }
 
 // machine exception program counter.
 // holds the instruction address to which a return from
 // exception will go
-#[inline]
-pub fn r_sepc() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, sepc", out(reg) x) }
-    x
-}
+pub mod SEPC {
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, sepc", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_sepc(x: u64) {
-    unsafe { asm!("csrw sepc, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw sepc, {}", in(reg) x) }
+    }
 }
 
 // machine exception delegation
-#[inline]
-pub fn r_medeleg() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, medeleg", out(reg) x) }
-    x
-}
+pub mod MEDELEG {
+    #[inline]
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, medeleg", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_medeleg(x: u64) {
-    unsafe { asm!("csrw medeleg, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw medeleg, {}", in(reg) x) }
+    }
 }
 
 // machine interrupt delegation
-pub fn r_mideleg() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, mideleg", out(reg) x) }
-    x
-}
+pub mod MIDELEG {
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, mideleg", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_mideleg(x: u64) {
-    unsafe { asm!("csrw mideleg, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw mideleg, {}", in(reg) x) }
+    }
 }
 
 // supervisor trap-vector base address (vector location)
 // low two bits ar mode.
-pub fn r_stvec() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, stvec", out(reg) x) }
-    x
-}
+pub mod STVEC {
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, stvec", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_stvec(x: u64) {
-    unsafe { asm!("csrw stvec, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw stvec, {}", in(reg) x) }
+    }
 }
 
 // machine mode interrupt vector
-#[inline]
-pub fn w_mtvec(x: u64) {
-    unsafe { asm!("csrw mtvec, {}", in(reg) x) }
+pub mod MTVEC {
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw mtvec, {}", in(reg) x) }
+    }
 }
 
-// use riscv's sv39 page table scheme.
-const SAPT_SV39: u64 = 8 << 60;
+pub mod SAPT {
+    // use riscv's sv39 page table scheme.
+    const SAPT_SV39: u64 = 8 << 60;
 
-#[inline]
-pub fn make_satp(pagetable: u64) {
-    SAPT_SV39 | (pagetable >> 12)
-}
+    #[inline]
+    pub fn make(pagetable: u64) {
+        SAPT_SV39 | (pagetable >> 12)
+    }
 
-// supervisor address translation and protection.
-// holds the address of the page table.
-pub fn r_satp() -> u64 {
-    let mut x: u64;
-    unsafe { asm!("csrr {}, satp", out(reg) x) }
-    x
-}
+    // supervisor address translation and protection.
+    // holds the address of the page table.
+    pub fn read() -> u64 {
+        let mut x: u64;
+        unsafe { asm!("csrr {}, satp", out(reg) x) }
+        x
+    }
 
-#[inline]
-pub fn w_satp(x: u64) {
-    unsafe { asm!("csrw satp, {}", in(reg) x) }
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw satp, {}", in(reg) x) }
+    }
 }
 
 // supervisor scratch register, for early trap handler in trampoline.S
-#[inline]
-pub fn w_sscratch(x: u64) {
+pub mod SSCRATCH {
+    #[inline]
+    pub fn write(x: u64) {
+        unsafe { asm!("csrw sscratch, {}", in(reg) x) }
+    }
 
+    #[inline]
+    pub fn read(x: u64) {
+        unsafe { asm!("csrw mscratch, {}", in(reg) x) }
+    }
 }
 
+// supervisor Trap cause
+#[inline]
+pub fn r_scause() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("csrr {}, scause", out(reg) x) }
+    x
+}
+
+// supervisor trap value
+#[inline]
+pub fn r_stval() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("csrr {}, stval", out(reg) x) }
+    x
+}
+
+// machine mode counter enable
+#[inline]
+pub fn w_mcounteren(x: u64) {
+    unsafe { asm!("csrw mcounteren, {}", in(reg) x) }
+}
+
+#[inline]
+pub fn r_mcounteren() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("csrr {}, mcounteren", out(reg) x) }
+    x
+}
+
+// machine mode cycle counter
+pub fn r_time() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("csrr {}, time", out(reg) x) }
+    x
+}
+
+// enable device interrupts
+pub fn intr_on() {
+    SIE::write(SIE::read() | SIE::SEIE | SIE::STIE | SIE::SSIE);
+    SSTATUS::write(SSTATUS::read() | SSTATUS::SIE);
+}
+
+// disable device interrupts
+pub fn intr_off() {
+    SSTATUS::write(SSTATUS::read() & !SSTATUS::SIE);
+}
+
+// check if device interrupts is enabled
+pub fn intr_get() -> bool {
+    let x = SSTATUS::read();
+    (x & SSTATUS::SIE) != 0
+}
+
+pub fn r_sp() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("mv {}, sp", out(reg) x) }
+    x
+}
+
+// read and write tp, the thread pointer
+// tp holds this core's hartid, the index into cpus[].
+pub fn r_tp() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("mv {}, tp", out(reg) x) }
+    x
+}
+
+pub fn w_tp(x: u64) {
+    unsafe { asm!("mv tp, {}", in(reg) x) }
+}
+
+pub fn r_ra() -> u64 {
+    let mut x: u64 = 0;
+    unsafe { asm!("mv {}, ra", out(reg) x) }
+    x
+}
+
+// flush the TLB.
+pub fn sfence_vma() {
+    unsafe { asm!("sfence.vma zero, zero") }
+}
+
+pub mod PG {
+    pub const SIZE: u64 = 4096;
+    pub const SHIFT: u64 = 12;
+
+    #[inline]
+    pub fn roundup(sz: u64) -> u64 {
+        (sz + SIZE - 1) & !(SIZE - 1)
+    }
+
+    #[inline]
+    pub fn rounddown(a: u64) -> u64 {
+        a & !(SIZE - 1)
+    }
+}
+
+pub mod PTE {
+    pub const V: u64 = 1 << 0; // valid
+    pub const R: u64 = 1 << 1; // valid
+    pub const W: u64 = 1 << 2; // valid
+    pub const X: u64 = 1 << 3; // valid
+    pub const U: u64 = 1 << 4; // valid
+
+    // shift a physical address to the right place for a PTE.
+    #[inline]
+    pub fn pa2pte(pa: u64) -> u64 {
+        (pa >> 12) << 10
+    }
+
+    #[inline]
+    pub fn pte2pa(pte: u64) -> u64 {
+        (pte >> 10) << 12
+    }
+
+    #[inline]
+    pub fn pte_flags(pte: u64) -> u64 {
+        pte & 0x3FF
+    }
+}
+
+// extact the three 9-bit page table indices from a virtual address.
+pub mod PX {
+    pub const PXMASK: u64 = 0x1ff; // 9 bit
+
+    #[inline]
+    pub fn pxshift(level: u64) -> u64 {
+        super::PG::SHIFT + (9 * level)
+    }
+
+    #[inline]
+    pub fn px(level: u64, va: u64) -> u64 {
+        (va >> pxshift(level)) & PXMASK
+    }
+}
+
+// one beyond the highest possible virtual address.
+// MAXVA is actually one bit less than the max allowed by
+// Sv39, to avoid having to sign-extend virtual addresses
+// that have the high bit set.
+pub const MAXVA: u64 = 1 << (9 + 9 + 9 + 12 - 1);
 
 pub type Pte = u64;
 pub type Pagetable = [u64; 512]; // 512 PTEs
@@ -236,7 +408,7 @@ pub type Pagetable = [u64; 512]; // 512 PTEs
 //        granted.
 //
 // - Control and status register - CSR (mem mapped reg, 12 bit address)
-//      - its damn registers in the memory ...
+//      - its registers in the memory ...
 //      - some important regs.
 //      - * = u/s/m, implies the privilege mode.
 //
