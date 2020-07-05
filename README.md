@@ -1,1 +1,3 @@
 ### yet another rust os based on xv6...
+
+![](./roton.png)
