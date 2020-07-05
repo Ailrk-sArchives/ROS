@@ -92,9 +92,9 @@ pub mod SIP {
 
 // supervisor interrupt enable
 pub mod SIE {
-    pub const SEIE: u64 = 1 << 9;
-    pub const STIE: u64 = 1 << 5;
-    pub const SSIE: u64 = 1 << 1;
+    pub const SEIE: u64 = 1 << 9; // external
+    pub const STIE: u64 = 1 << 5; // timer
+    pub const SSIE: u64 = 1 << 1; // software
 
     #[inline]
     pub fn read() -> u64 {
@@ -111,9 +111,9 @@ pub mod SIE {
 
 // macine mode interrupt enable
 pub mod MIE {
-    pub const MEIE: u64 = 1 << 9;
-    pub const MTIE: u64 = 1 << 5;
-    pub const MSIE: u64 = 1 << 1;
+    pub const MEIE: u64 = 1 << 9; // external
+    pub const MTIE: u64 = 1 << 5; // timer
+    pub const MSIE: u64 = 1 << 1; // software
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;

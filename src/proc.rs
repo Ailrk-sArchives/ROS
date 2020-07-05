@@ -7,7 +7,6 @@ use super::riscv::Pagetable;
 use super::spinlock;
 
 // registers for context swithing.
-#[repr(C)]
 pub struct Context {
     ra: u64,
     sp: u64,
@@ -122,7 +121,7 @@ pub struct Proc<'a> {
 
     kstack: u64,                               // bottom of kernal stack for the process
     sz: usize,                                 // size of proces mem
-    pagetable: Pagetable<'a>,                  // page table
+    pagetable: Pagetable,                  // page table
     tf: &'a mut Trapframe,                     // data page for trampoline.S
     context: Context,                          // switch() here to run process
     ofile: &'a mut [File<'a>; params::NOFILE], // open files
@@ -134,8 +133,6 @@ impl<'a> Proc<'a> {
     fn new() -> Proc<'a> {
         unimplemented!();
     }
-
-
 }
 
 pub fn cpuid() -> u32 {
