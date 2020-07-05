@@ -50,7 +50,6 @@ type Cpus<'a> = [Cpu<'a>; params::NCPU];
 // the trapframe incldues callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through the
 // entire knernel call stack.
-#[repr(C)]
 pub struct Trapframe {
     kernel_satp: u64,   // kernal page table
     kernel_sp: u64,     // top of process's kernal stack

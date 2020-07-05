@@ -27,7 +27,7 @@ impl<'a> SpinLock<'a> {
         while __sync_lock_test_and_set(self.locked, 1) != 0 {}
 
         __sync_synchronize();
-        self.cpu = mycpu();
+        self.cpu = Some(mycpu());
     }
 
     // check whether this cpu is holding the lock.
