@@ -25,21 +25,21 @@
 // PHYSTOP -- end RAM used by the kernel.
 
 // qemu puts UART registers here in physical memory.
-pub const uart0: u64 =  0x10000000;
-pub const uart0_1rq: u32 = 10;
+pub const UART0: u64 =  0x10000000;
+pub const UART0_1RQ: u32 = 10;
 
 // virtio mmio interface
-pub const uvirtio0: u64 =  0x10001000;
-pub const uvirtio0_irq: u32 =  1;
+pub const UVIRTIO0: u64 =  0x10001000;
+pub const UVIRTIO0_IRQ: u32 =  1;
 
 // local interrupt controller, which contains the timer.
-pub const clint: u64 = 0x20000000;
+pub const CLINT: u64 = 0x20000000;
 
 #[inline]
 pub fn clint_mtimecmp(hardid: u64) -> u64 {
-    clint + 0x4000 + 8 * hardid
+    CLINT + 0x4000 + 8 * hardid
 }
 
-pub const clint_mtime: u64 = clint + 0xBFF8;  // syscles since boot.
+pub const CLINT_MTIME: u64 = CLINT + 0xBFF8;  // syscles since boot.
 
 // qemu puts programmable interrupt controller here.

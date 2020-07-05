@@ -155,10 +155,55 @@ pub fn w_mideleg(x: u64) {
     unsafe { asm!("csrw mideleg, {}", in(reg) x) }
 }
 
-// sup
+// supervisor trap-vector base address (vector location)
+// low two bits ar mode.
+pub fn r_stvec() -> u64 {
+    let mut x: u64;
+    unsafe { asm!("csrr {}, stvec", out(reg) x) }
+    x
+}
+
+#[inline]
+pub fn w_stvec(x: u64) {
+    unsafe { asm!("csrw stvec, {}", in(reg) x) }
+}
+
+// machine mode interrupt vector
+#[inline]
+pub fn w_mtvec(x: u64) {
+    unsafe { asm!("csrw mtvec, {}", in(reg) x) }
+}
+
+// use riscv's sv39 page table scheme.
+const SAPT_SV39: u64 = 8 << 60;
+
+#[inline]
+pub fn make_satp(pagetable: u64) {
+    SAPT_SV39 | (pagetable >> 12)
+}
+
+// supervisor address translation and protection.
+// holds the address of the page table.
+pub fn r_satp() -> u64 {
+    let mut x: u64;
+    unsafe { asm!("csrr {}, satp", out(reg) x) }
+    x
+}
+
+#[inline]
+pub fn w_satp(x: u64) {
+    unsafe { asm!("csrw satp, {}", in(reg) x) }
+}
+
+// supervisor scratch register, for early trap handler in trampoline.S
+#[inline]
+pub fn w_sscratch(x: u64) {
+
+}
+
 
 pub type Pte = u64;
-pub type Pagetable<'a> = &'a u64;
+pub type Pagetable = [u64; 512]; // 512 PTEs
 
 // About qemu
 //      - the os runs on quemu -machine virt
