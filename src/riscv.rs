@@ -15,12 +15,16 @@
 //      HBI:  ...
 //      HEE   ...
 
+// more references are at the bottom ...
+
 // read hart id
 pub mod MHARTID {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, mhartid", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, mhartid", out(reg) x);
+        }
         x
     }
 }
@@ -35,13 +39,17 @@ pub mod MSTATUS {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("cssr {}, mstatus", out(reg) x) }
+        unsafe {
+            asm!("cssr {}, mstatus", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw mstatus, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mstatus, {}", in(reg) x);
+        }
     }
 }
 
@@ -51,7 +59,9 @@ pub mod MSTATUS {
 pub mod MEPC {
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw mepc, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mepc, {}", in(reg) x);
+        }
     }
 }
 
@@ -65,13 +75,17 @@ pub mod SSTATUS {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64 = 0;
-        unsafe { asm!("csrr {}, sstatus", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, sstatus", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw sstatus, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw sstatus, {}", in(reg) x);
+        }
     }
 }
 
@@ -80,13 +94,17 @@ pub mod SIP {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, sip", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, sip", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw sip, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw sip, {}", in(reg) x);
+        }
     }
 }
 
@@ -99,13 +117,17 @@ pub mod SIE {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, sie", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, sie", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw sie, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw sie, {}", in(reg) x);
+        }
     }
 }
 
@@ -117,13 +139,17 @@ pub mod MIE {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, mie", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, mie", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw mie, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mie, {}", in(reg) x);
+        }
     }
 }
 
@@ -134,13 +160,17 @@ pub mod SEPC {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, sepc", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, sepc", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw sepc, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw sepc, {}", in(reg) x);
+        }
     }
 }
 
@@ -149,13 +179,17 @@ pub mod MEDELEG {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, medeleg", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, medeleg", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw medeleg, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw medeleg, {}", in(reg) x);
+        }
     }
 }
 
@@ -163,13 +197,17 @@ pub mod MEDELEG {
 pub mod MIDELEG {
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, mideleg", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, mideleg", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw mideleg, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mideleg, {}", in(reg) x);
+        }
     }
 }
 
@@ -178,13 +216,17 @@ pub mod MIDELEG {
 pub mod STVEC {
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, stvec", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, stvec", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw stvec, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw stvec, {}", in(reg) x);
+        }
     }
 }
 
@@ -192,7 +234,9 @@ pub mod STVEC {
 pub mod MTVEC {
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw mtvec, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mtvec, {}", in(reg) x);
+        }
     }
 }
 
@@ -209,13 +253,17 @@ pub mod SAPT {
     // holds the address of the page table.
     pub fn read() -> u64 {
         let mut x: u64;
-        unsafe { asm!("csrr {}, satp", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, satp", out(reg) x);
+        }
         x
     }
 
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw satp, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw satp, {}", in(reg) x);
+        }
     }
 }
 
@@ -223,12 +271,16 @@ pub mod SAPT {
 pub mod SSCRATCH {
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw sscratch, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw sscratch, {}", in(reg) x);
+        }
     }
 
     #[inline]
     pub fn read(x: u64) {
-        unsafe { asm!("csrw mscratch, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mscratch, {}", in(reg) x);
+        }
     }
 }
 
@@ -237,7 +289,9 @@ pub mod SCAUSE {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64 = 0;
-        unsafe { asm!("csrr {}, scause", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, scause", out(reg) x);
+        }
         x
     }
 }
@@ -247,7 +301,9 @@ pub mod STVAL {
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64 = 0;
-        unsafe { asm!("csrr {}, stval", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, stval", out(reg) x);
+        }
         x
     }
 }
@@ -256,13 +312,17 @@ pub mod STVAL {
 pub mod MCOUNTEREN {
     #[inline]
     pub fn write(x: u64) {
-        unsafe { asm!("csrw mcounteren, {}", in(reg) x) }
+        unsafe {
+            asm!("csrw mcounteren, {}", in(reg) x);
+        }
     }
 
     #[inline]
     pub fn read() -> u64 {
         let mut x: u64 = 0;
-        unsafe { asm!("csrr {}, mcounteren", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, mcounteren", out(reg) x);
+        }
         x
     }
 }
@@ -271,7 +331,9 @@ pub mod MCOUNTEREN {
 pub mod TIME {
     pub fn read() -> u64 {
         let mut x: u64 = 0;
-        unsafe { asm!("csrr {}, time", out(reg) x) }
+        unsafe {
+            asm!("csrr {}, time", out(reg) x);
+        }
         x
     }
 }
@@ -302,7 +364,9 @@ pub mod REGS {
     pub mod SP {
         pub fn read() -> u64 {
             let mut x: u64 = 0;
-            unsafe { asm!("mv {}, sp", out(reg) x) }
+            unsafe {
+                asm!("mv {}, sp", out(reg) x);
+            }
             x
         }
     }
@@ -312,19 +376,25 @@ pub mod REGS {
         // tp holds this core's hartid, the index into cpus[].
         pub fn read() -> u64 {
             let mut x: u64 = 0;
-            unsafe { asm!("mv {}, tp", out(reg) x) }
+            unsafe {
+                asm!("mv {}, tp", out(reg) x);
+            }
             x
         }
 
         pub fn write(x: u64) {
-            unsafe { asm!("mv tp, {}", in(reg) x) }
+            unsafe {
+                asm!("mv tp, {}", in(reg) x);
+            }
         }
     }
 
     pub mod RA {
         pub fn read() -> u64 {
             let mut x: u64 = 0;
-            unsafe { asm!("mv {}, ra", out(reg) x) }
+            unsafe {
+                asm!("mv {}, ra", out(reg) x);
+            }
             x
         }
     }
@@ -333,7 +403,9 @@ pub mod REGS {
 pub mod FENCE {
     // flush the TLB.
     pub fn sfence_vma() {
-        unsafe { asm!("sfence.vma zero, zero") }
+        unsafe {
+            asm!("sfence.vma zero, zero");
+        }
     }
 }
 
@@ -396,6 +468,62 @@ pub mod PX {
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
 pub const MAXVA: u64 = 1 << (9 + 9 + 9 + 12 - 1);
+
+// Atomic Memory Operations, perform read-modify-write operation
+// for multiprocessor synchoronization.
+// Instruction in form:
+//      amo* rd r2 (r1)
+// procedure:
+//  rd <-data from address r1
+//  rd <- rd op r2
+//  r1 <- rd
+//  where op is an binary operation based on amo instruction used.
+
+pub mod SYNC {
+    // atomic swap wrapper mimic gcc extension.
+    // write value into p, and returns the previous value of p;
+    // .aq bit set to ensure no other thread will observe the
+    // AMO operation after AMO memory access.
+    pub fn lock_test_and_set(p: &mut bool, value: bool) -> bool {
+        let prevp: bool = *p;
+        let ptemp: mut u64 = prevp as u64;
+        unsafe {
+            asm!(
+                "
+                li t0, {value}
+                lw s1, {0}
+                amoswap.w.aq t1, t0, (s1)
+                 ",
+                 inout("s1") ptemp,  // address
+                 value = const value as u64
+            );
+        }
+        *p = ptemp as bool;
+        prevp
+    }
+
+    // sync all operations.
+    // fence rwio, rwio is a conservative fence, it
+    // will sync both memory access and device io operations.
+    // more to read: https://github.com/riscv/riscv-gcc/pull/55
+    pub fn synchronize() {
+        unsafe {
+            asm!("fence rwio, rwio");
+        }
+    }
+
+    // Release the lock.
+    // same as spinlock.locked = 0;
+    // .rl bit set to ensure threads will not
+    // observe the AMO operation before the AMO memory access.
+    pub fn lock_release(p: &mut bool) {
+        unsafe {
+            asm!("la s1 {0}
+                  amoswap.w.rl zero, zero, (s1)",
+                  in(reg) *p as u64);
+        }
+    }
+}
 
 pub type Pte = u64;
 pub type Pagetable = [u64; 512]; // 512 PTEs
