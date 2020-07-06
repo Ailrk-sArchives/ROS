@@ -31,7 +31,7 @@ pub struct Cpu<'a> {
     pub proc: Option<&'a mut Proc<'a>>, // the process run on cpu.
     pub scheduler: Context,             // switch to enter scheduler.
     pub noff: i32,                      // depth of push_off() nesting.
-    pub intena: i32,                    // interrups flag
+    pub intena: bool,                   // interrups flag
 }
 
 type Cpus<'a> = [Cpu<'a>; params::NCPU];
@@ -113,24 +113,25 @@ pub enum ProcState {
 pub struct Proc<'a> {
     pub lock: spinlock::SpinLock<'a>,
 
+    pub state: ProcState, // process state
     pub parent: &'a Proc<'a>,
-    pub procstate: ProcState, // process state
-    pub killed: bool,         // kill flag
-    pub xstate: bool,         // exit status
-    pub pid: i32,             // process id
+    pub chan: Option<*const ()>, // if non zero, sleep on chan TODO chan should be ptr to any
+    pub killed: bool,    // kill flag
+    pub xstate: bool,    // exit status
+    pub pid: i32,        // process id
 
-    kstack: u64,                               // bottom of kernal stack for the process
-    sz: usize,                                 // size of proces mem
-    pagetable: Pagetable,                  // page table
-    tf: &'a mut Trapframe,                     // data page for trampoline.S
-    context: Context,                          // switch() here to run process
-    ofile: &'a mut [File<'a>; params::NOFILE], // open files
-    cwd: &'a mut Inode,                        // current directory.
-    name: [u8; 16],                            // proc name (debugging)
+    pub kstack: u64,           // bottom of kernal stack for the process
+    pub sz: usize,             // size of proces mem
+    pub pagetable: Pagetable,  // page table
+    pub tf: &'a mut Trapframe, // data page for trampoline.S
+    pub context: Context,      // switch() here to run process
+    pub ofile: &'a mut [File<'a>; params::NOFILE], // open files
+    pub cwd: &'a mut Inode,    // current directory.
+    pub name: [u8; 16],        // proc name (debugging)
 }
 
 impl<'a> Proc<'a> {
-    fn new() -> Proc<'a> {
+    pub fn new() -> Proc<'a> {
         unimplemented!();
     }
 }
@@ -142,3 +143,48 @@ pub fn cpuid() -> u32 {
 pub fn mycpu<'a>() -> &'a Cpu<'a> {
     unimplemented!();
 }
+
+pub fn myproc<'a>() -> &'a Proc<'a> {
+    unimplemented!();
+}
+
+// atomically release lock and sleep on chan.
+// reacquires lock when awakened.
+pub fn sleep<'a>(chan: *const (), lk: &'a spinlock::SpinLock<'a>) {
+    let mut p = myproc();
+
+    // must acquire p.lock in order to
+    // change p.state and then call sched.
+    // Once we hold p.lock we can be guaranteed that we won't
+    // miss any wakeup
+    // so it's okay to release lk.
+    if lk != &p.lock {
+        p.lock.acquire();
+        lk.release();
+    }
+
+    p.chan = Some(chan);
+    p.state = ProcState::Sleeping;
+
+    sched();
+
+    // no more chan
+    p.chan = None;
+
+    // reacquire original lock.
+    if lk != &p.lock {
+        p.lock.release();
+        lk.acquire();
+    }
+}
+
+// wake up all processes sleeping on chan.
+// Must be called without any p.lock.
+pub fn wakeup(chan: *const ()) {
+}
+
+pub fn sched() {
+
+}
+
+

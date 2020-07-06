@@ -7,7 +7,16 @@ pub struct SpinLock<'a> {
     pub cpu: Option<&'a Cpu<'a>>,
 }
 
-pub impl<'a> SpinLock<'a> {
+// identity check. Compare pointer since rust doesn't have
+// direct idenity
+// you only care if two spinlock are the same lock.
+impl<'a> PartialEq for SpinLock<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self as *const _ == other as *const _
+    }
+}
+
+impl<'a> SpinLock<'a> {
     pub fn new(name: &'a str) -> SpinLock<'a> {
         return SpinLock {
             name,
@@ -18,13 +27,14 @@ pub impl<'a> SpinLock<'a> {
 
     // acquire the lock.
     // Loops (spins) until the lock is acquired.
-    pub fn acqure(&mut self) {
+    pub fn acquire(&mut self) {
         push_off(); // disable interrupts to avoid deadlock.
         if self.holding() {
-            panic!("acqure");
+            panic!("acquire");
         }
 
         // on risc-v sync_lock_test_and_set turns into an atomic swap.
+        // this is why it is called spinlock.
         while riscv::SYNC::lock_test_and_set(&mut self.locked, true) {}
 
         riscv::SYNC::synchronize();
@@ -66,7 +76,7 @@ pub impl<'a> SpinLock<'a> {
 fn push_off() {
     let old = riscv::DEV_INTR::get();
     riscv::DEV_INTR::off();
-    if (mycpu().noff == 0) {
+    if mycpu().noff == 0 {
         mycpu().intena = old;
     }
     mycpu().noff += 1;
@@ -74,16 +84,16 @@ fn push_off() {
 
 fn pop_off() {
     let c = mycpu();
-    if (riscv::DEV_INTR::get()) {
+    if riscv::DEV_INTR::get() {
         panic!("pop off - interruptible");
     }
     c.noff -= 1;
 
-    if (c.noff < 0) {
+    if c.noff < 0 {
         panic!("pop off");
     }
 
-    if (c.noff == 0 && c.intena) {
+    if c.noff == 0 && c.intena {
         riscv::DEV_INTR::on();
     }
 }

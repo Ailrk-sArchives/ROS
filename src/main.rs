@@ -13,6 +13,7 @@ mod vm;
 mod buf;
 mod sleeplock;
 mod bio;
+mod switch;
 
 fn main() {
     println!("Hello, world!");
