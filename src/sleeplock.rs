@@ -1,5 +1,6 @@
 // long  term lock for processes
 use super::spinlock::SpinLock;
+use super::proc::{sleep, wakeup, State};
 
 pub struct SleepLock<'a> {
     pub locked: bool,     // is the lock held?
@@ -7,7 +8,7 @@ pub struct SleepLock<'a> {
 
     // debug
     pub name: &'a str,
-    pub pid: u32,
+    pub pid: i32,
 }
 
 impl<'a> SleepLock<'a> {
@@ -23,7 +24,25 @@ impl<'a> SleepLock<'a> {
     pub fn acquire(&mut self) {
         self.lk.acquire();
         while self.lk.locked {
-            // TODO
+            sleep(&self, &mut self.lk);
         }
+        self.lk.locked = true;
+        self.pid = myproc().pid;
+        self.lk.release();
+    }
+
+    pub fn release(&mut self) {
+        self.lk.acquire();
+        self.locked = false;
+        self.pid = 0;
+        wakeup(&self);
+        self.lk.release();
+    }
+
+    pub fn holding(&mut self) -> bool {
+        self.lk.acquire();
+        let r: bool = self.locked && (self.pid == myproc().pid);
+        self.lk.release();
+        r
     }
 }

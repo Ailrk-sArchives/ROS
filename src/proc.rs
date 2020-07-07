@@ -6,6 +6,10 @@ use super::params;
 use super::riscv::Pagetable;
 use super::spinlock;
 
+type Cpus<'a> = [Cpu<'a>; params::NCPU];
+type Procs<'a> = [Proc<'a>; params::NPROC];
+struct InitProc<'a>(Proc<'a>);
+
 // registers for context swithing.
 pub struct Context {
     pub ra: u64,
@@ -33,8 +37,6 @@ pub struct Cpu<'a> {
     pub noff: i32,                      // depth of push_off() nesting.
     pub intena: bool,                   // interrups flag
 }
-
-type Cpus<'a> = [Cpu<'a>; params::NCPU];
 
 // per-process data for trap for handling code in trampoline.S
 // sits in a page by itself just under the trampoline page in the
@@ -116,9 +118,9 @@ pub struct Proc<'a> {
     pub state: ProcState, // process state
     pub parent: &'a Proc<'a>,
     pub chan: Option<*const ()>, // if non zero, sleep on chan TODO chan should be ptr to any
-    pub killed: bool,    // kill flag
-    pub xstate: bool,    // exit status
-    pub pid: i32,        // process id
+    pub killed: bool,            // kill flag
+    pub xstate: bool,            // exit status
+    pub pid: i32,                // process id
 
     pub kstack: u64,           // bottom of kernal stack for the process
     pub sz: usize,             // size of proces mem
@@ -136,21 +138,9 @@ impl<'a> Proc<'a> {
     }
 }
 
-pub fn cpuid() -> u32 {
-    unimplemented!();
-}
-
-pub fn mycpu<'a>() -> &'a Cpu<'a> {
-    unimplemented!();
-}
-
-pub fn myproc<'a>() -> &'a Proc<'a> {
-    unimplemented!();
-}
-
 // atomically release lock and sleep on chan.
 // reacquires lock when awakened.
-pub fn sleep<'a>(chan: *const (), lk: &'a spinlock::SpinLock<'a>) {
+pub fn sleep<'a, T>(chan: *const T, lk: &'a mut spinlock::SpinLock) {
     let mut p = myproc();
 
     // must acquire p.lock in order to
@@ -163,7 +153,7 @@ pub fn sleep<'a>(chan: *const (), lk: &'a spinlock::SpinLock<'a>) {
         lk.release();
     }
 
-    p.chan = Some(chan);
+    p.chan = Some(chan as *const ());
     p.state = ProcState::Sleeping;
 
     sched();
@@ -180,11 +170,29 @@ pub fn sleep<'a>(chan: *const (), lk: &'a spinlock::SpinLock<'a>) {
 
 // wake up all processes sleeping on chan.
 // Must be called without any p.lock.
-pub fn wakeup(chan: *const ()) {
+pub fn wakeup<T>(chan: *const T) {}
+
+pub fn sched() {}
+
+// global state, exists for the entire lifetime of the program.
+pub struct State<'a> {
+    cpus: Cpus<'a>,
+    procs: Procs<'a>,
+    initproc: InitProc<'a>,
+    nextpid: i32,
+    pidLock: spinlock::SpinLock<'a>,
 }
 
-pub fn sched() {
+impl<'a> State<'a> {
+    pub fn cpuid() -> u32 {
+        unimplemented!();
+    }
 
+    pub fn mycpu() -> &'a mut Cpu<'a> {
+        unimplemented!();
+    }
+
+    pub fn myproc() -> &'a mut Proc<'a> {
+        unimplemented!();
+    }
 }
-
-

@@ -17,6 +17,7 @@
 
 // more references are at the bottom ...
 
+// control and status registers
 pub mod CSR {
 
     // read hart id
