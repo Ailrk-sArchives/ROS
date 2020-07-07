@@ -1,4 +1,7 @@
 use super::pipe;
+use super::sleeplock::SleepLock;
+use super::fs;
+use super::params;
 
 pub enum FileType {
     FdNode,
@@ -7,16 +10,39 @@ pub enum FileType {
     FdDevice,
 }
 
+pub struct OpenFileBufferes<'a>([File<'a>; params::NOFILE]);
+
+impl<'a> Default for OpenFileBufferes<'a> {
+    fn default() -> Self {
+        OpenFileBufferes([Default::default(); params::NOFILE])
+    }
+}
+
+#[derive(Default)]
 pub struct File<'a> {
-    pub tp: FileType,
+    pub tp: Option<FileType>,
     pub refc: i32, // reference count.
     pub readable: bool,
     pub writable: bool,
     pub pipe: &'a pipe::Pipe<'a>, // FdPipe
-    pub ip: &'a mut Inode,        // FdInode and FdDevice
+    pub ip: &'a mut Inode<'a>,        // FdInode and FdDevice
     pub off: u32,                 // FdInode
     pub major: i16,               // FdDevice
 }
 
 // in-memory copy of an inode
-pub struct Inode {}
+#[derive(Default)]
+pub struct Inode<'a> {
+    pub dev: u32,  // Device number
+    pub inum: u32, // Inode numer
+    pub refc: i32, // reference count
+    pub sleep: SleepLock<'a>,   // protect everything below here
+    pub valid: i32,             // inode has been read from disk?
+
+    pub tp: u16,    // copy of disk inode
+    pub major: u16,
+    pub miner: u16,
+    pub nlink: u16,
+    pub size: u32,
+    pub addrs: [u32; fs::NDIRECT],
+}

@@ -1,7 +1,7 @@
 // process and scheduling
 // process -- unit of isolation.
 
-use super::file::{File, Inode};
+use super::file::{File, OpenFileBufferes, Inode};
 use super::params;
 use super::riscv::Pagetable;
 use super::spinlock;
@@ -11,6 +11,7 @@ type Procs<'a> = [Proc<'a>; params::NPROC];
 struct InitProc<'a>(Proc<'a>);
 
 // registers for context swithing.
+#[derive(Default)]
 pub struct Context {
     pub ra: u64,
     pub sp: u64,
@@ -31,6 +32,7 @@ pub struct Context {
 }
 
 // state of each CPU
+#[derive(Default)]
 pub struct Cpu<'a> {
     pub proc: Option<&'a mut Proc<'a>>, // the process run on cpu.
     pub scheduler: Context,             // switch to enter scheduler.
@@ -51,6 +53,7 @@ pub struct Cpu<'a> {
 // the trapframe incldues callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through the
 // entire knernel call stack.
+#[derive(Default)]
 pub struct Trapframe {
     pub kernel_satp: u64,   // kernal page table
     pub kernel_sp: u64,     // top of process's kernal stack
@@ -112,6 +115,7 @@ pub enum ProcState {
 //                    when syscall finished, kernel will switch back to user space by
 //                    calling `sret` (lower hw privilege).
 // run state.       for scheduling
+#[derive(Default)]
 pub struct Proc<'a> {
     pub lock: spinlock::SpinLock<'a>,
 
@@ -127,8 +131,8 @@ pub struct Proc<'a> {
     pub pagetable: Pagetable,  // page table
     pub tf: &'a mut Trapframe, // data page for trampoline.S
     pub context: Context,      // switch() here to run process
-    pub ofile: &'a mut [File<'a>; params::NOFILE], // open files
-    pub cwd: &'a mut Inode,    // current directory.
+    pub ofile: &'a mut OpenFileBufferes<'a>, // open files
+    pub cwd: &'a mut Inode<'a>,    // current directory.
     pub name: [u8; 16],        // proc name (debugging)
 }
 
@@ -136,41 +140,40 @@ impl<'a> Proc<'a> {
     pub fn new() -> Proc<'a> {
         unimplemented!();
     }
-}
 
-// atomically release lock and sleep on chan.
-// reacquires lock when awakened.
-pub fn sleep<'a, T>(chan: *const T, lk: &'a mut spinlock::SpinLock) {
-    let mut p = myproc();
+    // atomically release lock and sleep on chan.
+    // reacquires lock when awakened.
+    pub fn sleep<T>(&mut self, chan: *const T, lk: &'a mut spinlock::SpinLock<'a>) {
 
-    // must acquire p.lock in order to
-    // change p.state and then call sched.
-    // Once we hold p.lock we can be guaranteed that we won't
-    // miss any wakeup
-    // so it's okay to release lk.
-    if lk != &p.lock {
-        p.lock.acquire();
-        lk.release();
+        // must acquire p.lock in order to
+        // change p.state and then call sched.
+        // Once we hold p.lock we can be guaranteed that we won't
+        // miss any wakeup
+        // so it's okay to release lk.
+        if lk != &self.lock {
+            self.lock.acquire();
+            lk.release();
+        }
+
+        self.chan = Some(chan as *const ());
+        self.state = ProcState::Sleeping;
+
+        sched();
+
+        // no more chan
+        self.chan = None;
+
+        // reacquire original lock.
+        if lk != &self.lock {
+            self.lock.release();
+            lk.acquire();
+        }
     }
 
-    p.chan = Some(chan as *const ());
-    p.state = ProcState::Sleeping;
-
-    sched();
-
-    // no more chan
-    p.chan = None;
-
-    // reacquire original lock.
-    if lk != &p.lock {
-        p.lock.release();
-        lk.acquire();
-    }
+    // wake up all processes sleeping on chan.
+    // Must be called without any p.lock.
+    pub fn wakeup<T>(chan: *const T) {}
 }
-
-// wake up all processes sleeping on chan.
-// Must be called without any p.lock.
-pub fn wakeup<T>(chan: *const T) {}
 
 pub fn sched() {}
 
@@ -184,6 +187,16 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
+    pub fn new() -> State<'a> {
+        State {
+            cpus: Default::default(),
+            procs: Default::default(),
+            initproc: InitProc(Proc::new()),
+            nextpid: 1,
+            pidLock: spinlock::SpinLock::new("pidLock")
+        }
+    }
+
     pub fn cpuid() -> u32 {
         unimplemented!();
     }
@@ -196,3 +209,4 @@ impl<'a> State<'a> {
         unimplemented!();
     }
 }
+

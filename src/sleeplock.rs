@@ -2,6 +2,7 @@
 use super::spinlock::SpinLock;
 use super::proc::{sleep, wakeup, State};
 
+#[derive(Default)]
 pub struct SleepLock<'a> {
     pub locked: bool,     // is the lock held?
     pub lk: SpinLock<'a>, // spinlock protecting this sleep lock.

@@ -1,6 +1,7 @@
-use super::proc::{mycpu, Cpu};
+use super::proc::{Cpu};
 use super::riscv;
 
+#[derive(Default)]
 pub struct SpinLock<'a> {
     pub locked: bool,
     pub name: &'a str,
