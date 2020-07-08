@@ -129,6 +129,7 @@ impl Default for ProcState {
 // run state.       for scheduling
 #[derive(Default)]
 pub struct Proc<'a> {
+    pub os: Option<*mut State<'static>>,
     pub lock: spinlock::SpinLock<'a>,
 
     pub state: ProcState, // process state
@@ -203,13 +204,16 @@ pub struct State<'a> {
 
 impl<'a> State<'a> {
     pub fn new() -> State<'a> {
-        State {
+        let mut state = State {
             cpus: Default::default(),
             procs: Default::default(),
             initproc: InitProc(Proc::new()),
             nextpid: 1,
-            pidLock: spinlock::SpinLock::new("pidLock"),
-        }
+            pidLock: Default::default(),
+        };
+        let stateptr = Some(&mut state as *mut State<'a>);
+        state.pidLock = spinlock::SpinLock::new("nexPid", stateptr);
+        state
     }
 
     // must be called with interrupts disabled.
@@ -222,7 +226,7 @@ impl<'a> State<'a> {
         let id = self.cpuid() as usize;
         match self.cpus {
             Cpus(cpus) if id < cpus.len() => Ok(&mut cpus[id]),
-            _ => Err(StateErr::CpuIndexErr)
+            _ => Err(StateErr::CpuIndexErr),
         }
     }
 
@@ -241,5 +245,29 @@ impl<'a> State<'a> {
         pid = self.nextpid;
         self.pidLock.release();
         pid
+    }
+}
+
+// all struct contains ptr to State
+pub trait OSRefField<'a> {
+    fn get_os(&mut self) -> Option<*mut State<'a>>;
+}
+
+// fetching error happens here.
+pub trait OSFetch<'a>: OSRefField<'a> {
+    fn get_cpu_ref(&self) -> &'a Cpu<'a> {
+        (*self.get_os().unwrap()).mycpu().ok().unwrap() as &'_ Cpu<'_>
+    }
+
+    fn get_cpu_ref_mut(&mut self) -> &'a mut Cpu<'a> {
+        (*self.get_os().unwrap()).mycpu().ok().unwrap()
+    }
+
+    fn get_proc_ref(os: Option<*mut State<'a>>) -> &'a Proc<'a> {
+        (*os.unwrap()).myproc().ok().unwrap() as &'_ Proc<'_>
+    }
+
+    fn get_proc_ref_mut(os: Option<*mut State<'a>>) -> &'a mut Proc<'a> {
+        (*os.unwrap()).myproc().ok().unwrap()
     }
 }

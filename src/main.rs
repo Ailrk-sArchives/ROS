@@ -14,11 +14,7 @@ mod buf;
 mod sleeplock;
 mod bio;
 mod switch;
-
-// singleton state of the entire os.
-static mut STATE: proc::State = proc::State::new();
+mod state;
 
 fn main() {
-    let mut os = proc::State::new();
-
 }

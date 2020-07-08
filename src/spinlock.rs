@@ -1,11 +1,12 @@
-use super::proc::{Cpu};
+use super::proc::{Cpu, OSFetch, OSRefField, State};
 use super::riscv;
 
 #[derive(Default)]
 pub struct SpinLock<'a> {
     pub locked: bool,
     pub name: &'a str,
-    pub cpu: Option<&'a Cpu<'a>>,
+    pub cpu: Option<&'a mut Cpu<'a>>,
+    os: Option<*mut State<'a>>,
 }
 
 // identity check. Compare pointer since rust doesn't have
@@ -17,13 +18,22 @@ impl<'a> PartialEq for SpinLock<'a> {
     }
 }
 
+impl<'a> OSRefField<'a> for SpinLock<'a> {
+    fn get_os(&mut self) -> Option<*mut State<'a>> {
+        self.os
+    }
+}
+
+impl<'a> OSFetch<'a> for SpinLock<'a> {}
+
 impl<'a> SpinLock<'a> {
-    pub fn new(name: &'a str) -> SpinLock<'a> {
-        return SpinLock {
+    pub fn new(name: &'a str, os: Option<*mut State<'a>>) -> SpinLock<'a> {
+        SpinLock {
             name,
             locked: false,
             cpu: None,
-        };
+            os,
+        }
     }
 
     // acquire the lock.
@@ -39,7 +49,7 @@ impl<'a> SpinLock<'a> {
         while riscv::SYNC::lock_test_and_set(&mut self.locked, true) {}
 
         riscv::SYNC::synchronize();
-        self.cpu = Some(mycpu());
+        self.cpu = Some(self.get_cpu_ref_mut());
     }
 
     // release the lock
@@ -62,7 +72,10 @@ impl<'a> SpinLock<'a> {
         let r = self.locked
             && self
                 .cpu
-                .map(|val| (val as *const Cpu) == (mycpu() as *const Cpu))
+                .map(|val| unsafe {
+                    let cpu = self.get_cpu_ref() as *const Cpu as *const ();
+                    val as *const Cpu as *const () == cpu
+                })
                 .unwrap_or(false);
         pop_off();
         r
