@@ -1,7 +1,7 @@
-use super::sleeplock::SleepLock;
 use super::fs::BSIZE;
+use super::sleeplock::SleepLock;
 
-
+#[derive(Default)]
 pub struct Buf<'a> {
     valid: bool, // has data been read from disk?
     disk: bool,  // does disk own buffer?
@@ -9,8 +9,8 @@ pub struct Buf<'a> {
     blockno: u32,
     lock: SleepLock<'a>,
     refcnt: u32,
-    prev: &'a Buf<'a>, // LRU cache list
-    next: &'a Buf<'a>,
-    qnext: &'a Buf<'a>, // disk queue
+    prev: Option<&'a Buf<'a>>, // LRU cache list
+    next: Option<&'a Buf<'a>>,
+    qnext: Option<&'a Buf<'a>>, // disk queue
     data: [char; BSIZE],
 }

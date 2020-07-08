@@ -20,6 +20,7 @@ use super::buf::Buf;
 use super::params::NBUF;
 
 
+#[derive(Default)]
 pub struct Bcache<'a> {
     lock: SpinLock<'a>,
     buf: [Buf<'a>; NBUF],

@@ -10,13 +10,8 @@ pub enum FileType {
     FdDevice,
 }
 
+#[derive(Default)]
 pub struct OpenFileBufferes<'a>([File<'a>; params::NOFILE]);
-
-impl<'a> Default for OpenFileBufferes<'a> {
-    fn default() -> Self {
-        OpenFileBufferes([Default::default(); params::NOFILE])
-    }
-}
 
 #[derive(Default)]
 pub struct File<'a> {
@@ -24,8 +19,8 @@ pub struct File<'a> {
     pub refc: i32, // reference count.
     pub readable: bool,
     pub writable: bool,
-    pub pipe: &'a pipe::Pipe<'a>, // FdPipe
-    pub ip: &'a mut Inode<'a>,        // FdInode and FdDevice
+    pub pipe: Option<&'a pipe::Pipe<'a>>, // FdPipe
+    pub ip: Option<&'a mut Inode<'a>>,        // FdInode and FdDevice
     pub off: u32,                 // FdInode
     pub major: i16,               // FdDevice
 }
@@ -46,3 +41,5 @@ pub struct Inode<'a> {
     pub size: u32,
     pub addrs: [u32; fs::NDIRECT],
 }
+
+

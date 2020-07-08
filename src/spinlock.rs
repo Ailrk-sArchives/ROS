@@ -74,7 +74,7 @@ impl<'a> SpinLock<'a> {
 // it takes two pop_off() to undo two push_off()s. Also, if interrrupts
 // are initially off, then push_off, pop_off leaves them off.
 
-fn push_off() {
+pub fn push_off() {
     let old = riscv::DEV_INTR::get();
     riscv::DEV_INTR::off();
     if mycpu().noff == 0 {
@@ -83,7 +83,7 @@ fn push_off() {
     mycpu().noff += 1;
 }
 
-fn pop_off() {
+pub fn pop_off() {
     let c = mycpu();
     if riscv::DEV_INTR::get() {
         panic!("pop off - interruptible");

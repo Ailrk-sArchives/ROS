@@ -532,7 +532,13 @@ pub mod SYNC {
 }
 
 pub type Pte = u64;
-pub type Pagetable = [u64; 512]; // 512 PTEs
+
+pub struct Pagetable ([u64; 512]); // 512 PTEs
+impl Default for Pagetable {
+    fn default() -> Self {
+        Pagetable([0; 512])
+    }
+}
 
 // About qemu
 //      - the os runs on quemu -machine virt

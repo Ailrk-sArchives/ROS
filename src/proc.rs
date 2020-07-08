@@ -1,14 +1,21 @@
 // process and scheduling
 // process -- unit of isolation.
 
-use super::file::{File, OpenFileBufferes, Inode};
+use super::file::{Inode, OpenFileBufferes};
 use super::params;
-use super::riscv::Pagetable;
+use super::riscv;
 use super::spinlock;
 
-type Cpus<'a> = [Cpu<'a>; params::NCPU];
-type Procs<'a> = [Proc<'a>; params::NPROC];
-struct InitProc<'a>(Proc<'a>);
+#[derive(Default)]
+pub struct Cpus<'a>([Cpu<'a>; params::NCPU]);
+
+pub struct Procs<'a>([Proc<'a>; params::NPROC]);
+impl<'a> Default for Procs<'a> {
+    fn default() -> Self {
+        Procs([Default::default(); params::NPROC])
+    }
+}
+pub struct InitProc<'a>(Proc<'a>);
 
 // registers for context swithing.
 #[derive(Default)]
@@ -106,6 +113,11 @@ pub enum ProcState {
     Running,
     Zombie,
 }
+impl Default for ProcState {
+    fn default() -> Self {
+        ProcState::Unused
+    }
+}
 
 // maintain important states for process.
 // page table:      map from virtual address space to physical space
@@ -120,20 +132,20 @@ pub struct Proc<'a> {
     pub lock: spinlock::SpinLock<'a>,
 
     pub state: ProcState, // process state
-    pub parent: &'a Proc<'a>,
+    pub parent: Option<&'a Proc<'a>>,
     pub chan: Option<*const ()>, // if non zero, sleep on chan TODO chan should be ptr to any
     pub killed: bool,            // kill flag
     pub xstate: bool,            // exit status
     pub pid: i32,                // process id
 
-    pub kstack: u64,           // bottom of kernal stack for the process
-    pub sz: usize,             // size of proces mem
-    pub pagetable: Pagetable,  // page table
-    pub tf: &'a mut Trapframe, // data page for trampoline.S
-    pub context: Context,      // switch() here to run process
-    pub ofile: &'a mut OpenFileBufferes<'a>, // open files
-    pub cwd: &'a mut Inode<'a>,    // current directory.
-    pub name: [u8; 16],        // proc name (debugging)
+    pub kstack: u64,                   // bottom of kernal stack for the process
+    pub sz: usize,                     // size of proces mem
+    pub pagetable: riscv::Pagetable,   // page table
+    pub tf: Option<&'a mut Trapframe>, // data page for trampoline.S
+    pub context: Context,              // switch() here to run process
+    pub ofile: Option<&'a mut OpenFileBufferes<'a>>, // open files
+    pub cwd: Option<&'a mut Inode<'a>>, // current directory.
+    pub name: &'a str,                 // proc name (debugging)
 }
 
 impl<'a> Proc<'a> {
@@ -144,7 +156,6 @@ impl<'a> Proc<'a> {
     // atomically release lock and sleep on chan.
     // reacquires lock when awakened.
     pub fn sleep<T>(&mut self, chan: *const T, lk: &'a mut spinlock::SpinLock<'a>) {
-
         // must acquire p.lock in order to
         // change p.state and then call sched.
         // Once we hold p.lock we can be guaranteed that we won't
@@ -177,6 +188,10 @@ impl<'a> Proc<'a> {
 
 pub fn sched() {}
 
+pub enum StateErr {
+    CpuIndexErr,
+}
+
 // global state, exists for the entire lifetime of the program.
 pub struct State<'a> {
     cpus: Cpus<'a>,
@@ -193,20 +208,38 @@ impl<'a> State<'a> {
             procs: Default::default(),
             initproc: InitProc(Proc::new()),
             nextpid: 1,
-            pidLock: spinlock::SpinLock::new("pidLock")
+            pidLock: spinlock::SpinLock::new("pidLock"),
         }
     }
 
-    pub fn cpuid() -> u32 {
-        unimplemented!();
+    // must be called with interrupts disabled.
+    // prevent process be moved to a different cpu.
+    pub fn cpuid(&self) -> u64 {
+        riscv::REGS::TP::read()
     }
 
-    pub fn mycpu() -> &'a mut Cpu<'a> {
-        unimplemented!();
+    pub fn mycpu(&mut self) -> Result<&'a mut Cpu<'a>, StateErr> {
+        let id = self.cpuid() as usize;
+        match self.cpus {
+            Cpus(cpus) if id < cpus.len() => Ok(&mut cpus[id]),
+            _ => Err(StateErr::CpuIndexErr)
+        }
     }
 
-    pub fn myproc() -> &'a mut Proc<'a> {
-        unimplemented!();
+    pub fn myproc(&mut self) -> Result<&'a mut Proc<'a>, StateErr> {
+        spinlock::push_off();
+        let c = self.mycpu()?;
+        let p = c.proc.unwrap();
+        spinlock::pop_off();
+        Ok(p)
+    }
+
+    pub fn allocpid(&self) -> i32 {
+        let mut pid: i32 = 0;
+        self.pidLock.acquire();
+        self.nextpid = self.nextpid + 1;
+        pid = self.nextpid;
+        self.pidLock.release();
+        pid
     }
 }
-
