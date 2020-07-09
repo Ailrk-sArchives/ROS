@@ -213,7 +213,7 @@ impl<'a> State<'a> {
         riscv::REGS::TP::read()
     }
 
-    pub fn mycpu(&mut self) -> Result<&'a mut Cpu<'_>, StateErr> {
+    pub fn mycpu(&mut self) -> Result<&'_ mut Cpu<'a>, StateErr> {
         let id = self.cpuid() as usize;
         match self.cpus {
             // borrow Option content in Cpus
@@ -222,8 +222,15 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn myproc(&mut self) -> Result<&'a mut Proc<'_>, StateErr> {
-        unimplemented!();
+    pub fn myproc(&mut self) -> Result<&'a mut Proc<'a>, StateErr> {
+        let mut result: Result<&'a mut Proc<'a>, StateErr>;
+        self.push_off()
+            .sdo(|state| {
+                let proc = state.mycpu().ok().unwrap().proc.unwrap();
+                result = Ok(proc);
+            })
+            .pop_off();
+        result
     }
 
     pub fn allocpid(&mut self) -> i32 {
