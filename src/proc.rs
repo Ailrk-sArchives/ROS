@@ -106,6 +106,7 @@ pub struct Trapframe {
     pub t6: u64,
 }
 
+#[derive(PartialEq)]
 pub enum ProcState {
     Unused,
     Sleeping,
@@ -129,12 +130,12 @@ impl Default for ProcState {
 // run state.       for scheduling
 #[derive(Default)]
 pub struct Proc<'a> {
-    pub os: Option<*mut State<'static>>,
+    os: Option<*mut State<'a>>,
     pub lock: spinlock::SpinLock<'a>,
 
     pub state: ProcState, // process state
     pub parent: Option<&'a Proc<'a>>,
-    pub chan: Option<*const ()>, // if non zero, sleep on chan TODO chan should be ptr to any
+    pub chan: Option<*const ()>, // if non zero, sleep on chan
     pub killed: bool,            // kill flag
     pub xstate: bool,            // exit status
     pub pid: i32,                // process id
@@ -149,48 +150,38 @@ pub struct Proc<'a> {
     pub name: &'a str,                 // proc name (debugging)
 }
 
+// process can access the OS state.
+impl<'a> OSFetch<'a> for Proc<'a> {
+    fn get_os(&mut self) -> Option<*mut State<'a>> {
+        self.os
+    }
+}
+
 impl<'a> Proc<'a> {
     pub fn new() -> Proc<'a> {
         unimplemented!();
     }
 
-    // atomically release lock and sleep on chan.
-    // reacquires lock when awakened.
-    pub fn sleep<T>(&mut self, chan: *const T, lk: &'a mut spinlock::SpinLock<'a>) {
-        // must acquire p.lock in order to
-        // change p.state and then call sched.
-        // Once we hold p.lock we can be guaranteed that we won't
-        // miss any wakeup
-        // so it's okay to release lk.
-        if lk != &self.lock {
-            self.lock.acquire();
-            lk.release();
+    // Wake up process if it is sleeping in wait(); used by exit();
+    fn wakeup1(&mut self) {
+        if !self.lock.holding() {
+            panic!("wakeup1");
         }
-
-        self.chan = Some(chan as *const ());
-        self.state = ProcState::Sleeping;
-
-        sched();
-
-        // no more chan
-        self.chan = None;
-
-        // reacquire original lock.
-        if lk != &self.lock {
-            self.lock.release();
-            lk.acquire();
+        if self.chan.unwrap() as *const () == self as *const _ as *const () {
+            self.state = ProcState::Runnable;
         }
     }
 
-    // wake up all processes sleeping on chan.
-    // Must be called without any p.lock.
-    pub fn wakeup<T>(chan: *const T) {}
+    // Kill the process with the given pid
+    // The victim won't exit until it tires to return
+    // to user space (usertrap() in trap.rs)
 }
 
 pub fn sched() {}
 
 pub enum StateErr {
     CpuIndexErr,
+    ProcessDoesntExistErr,
 }
 
 // global state, exists for the entire lifetime of the program.
@@ -222,52 +213,112 @@ impl<'a> State<'a> {
         riscv::REGS::TP::read()
     }
 
-    pub fn mycpu(&mut self) -> Result<&'a mut Cpu<'a>, StateErr> {
+    pub fn mycpu(&mut self) -> Result<&'a mut Cpu<'_>, StateErr> {
         let id = self.cpuid() as usize;
         match self.cpus {
-            Cpus(cpus) if id < cpus.len() => Ok(&mut cpus[id]),
+            // borrow Option content in Cpus
+            Cpus(ref mut cpus) if id < cpus.len() => Ok(&mut cpus[id]),
             _ => Err(StateErr::CpuIndexErr),
         }
     }
 
-    pub fn myproc(&mut self) -> Result<&'a mut Proc<'a>, StateErr> {
-        spinlock::push_off();
-        let c = self.mycpu()?;
-        let p = c.proc.unwrap();
-        spinlock::pop_off();
-        Ok(p)
+    pub fn myproc(&mut self) -> Result<&'a mut Proc<'_>, StateErr> {
+        unimplemented!();
     }
 
-    pub fn allocpid(&self) -> i32 {
-        let mut pid: i32 = 0;
+    pub fn allocpid(&mut self) -> i32 {
         self.pidLock.acquire();
         self.nextpid = self.nextpid + 1;
-        pid = self.nextpid;
+        let pid = self.nextpid;
         self.pidLock.release();
         pid
     }
+
+    // atomically release lock and sleep on chan.
+    // reacquires lock when awakened.
+    pub fn sleep<T>(&mut self, chan: *const T, lk: &'a mut spinlock::SpinLock<'a>) {
+        // must acquire p.lock in order to
+        // change p.state and then call sched.
+        // Once we hold p.lock we can be guaranteed that we won't
+        // miss any wakeup
+        // so it's okay to release lk.
+        let p = self.proc_ref_mut();
+        if lk != &p.lock {
+            p.lock.acquire();
+            lk.release();
+        }
+
+        p.chan = Some(chan as *const ());
+        p.state = ProcState::Sleeping;
+
+        sched();
+
+        // no more chan
+        p.chan = None;
+
+        // reacquire original lock.
+        if lk != &p.lock {
+            p.lock.release();
+            lk.acquire();
+        }
+    }
+
+    // wake up all processes sleeping on chan.
+    // Must be called without any p.lock.
+    pub fn wakeup<T>(&mut self, chan: *const T) {
+        self.procs.0.iter_mut().map(|proc| {
+            proc.lock.acquire();
+            if proc.state == ProcState::Sleeping
+                && match proc.chan {
+                    Some(chanp) => chanp == chan as *const (),
+                    None => false,
+                }
+            {
+                proc.state = ProcState::Runnable;
+            }
+            proc.lock.release();
+        });
+    }
 }
 
-// all struct contains ptr to State
-pub trait OSRefField<'a> {
+impl<'a> OSFetch<'a> for State<'a> {
+    fn get_os(&mut self) -> Option<*mut State<'a>> {
+        return Some(self as *mut _);
+    }
+}
+
+// fetch state element easier.
+// all structs that can fetch os will have a definite size.
+pub trait OSFetch<'a>: Sized {
     fn get_os(&mut self) -> Option<*mut State<'a>>;
-}
 
-// fetching error happens here.
-pub trait OSFetch<'a>: OSRefField<'a> {
-    fn get_cpu_ref(&self) -> &'a Cpu<'a> {
-        (*self.get_os().unwrap()).mycpu().ok().unwrap() as &'_ Cpu<'_>
+    #[inline]
+    fn os_ref(&mut self) -> &'a State<'a> {
+        unsafe { self.get_os().unwrap().as_ref().unwrap() }
     }
 
-    fn get_cpu_ref_mut(&mut self) -> &'a mut Cpu<'a> {
-        (*self.get_os().unwrap()).mycpu().ok().unwrap()
+    #[inline]
+    fn os_ref_mut(&mut self) -> &'a mut State<'a> {
+        unsafe { self.get_os().unwrap().as_mut().unwrap() }
     }
 
-    fn get_proc_ref(os: Option<*mut State<'a>>) -> &'a Proc<'a> {
-        (*os.unwrap()).myproc().ok().unwrap() as &'_ Proc<'_>
+    #[inline]
+    fn cpu_ref(&mut self) -> &'a Cpu<'a> {
+        unsafe { (*self.get_os().unwrap()).mycpu().ok().unwrap() as &'_ Cpu<'_> }
     }
 
-    fn get_proc_ref_mut(os: Option<*mut State<'a>>) -> &'a mut Proc<'a> {
-        (*os.unwrap()).myproc().ok().unwrap()
+    #[inline]
+    fn cpu_ref_mut(&mut self) -> &'a mut Cpu<'a> {
+        unsafe { (*self.get_os().unwrap()).mycpu().ok().unwrap() }
+    }
+
+    #[inline]
+    fn proc_ref(&mut self) -> &'a Proc<'a> {
+        unsafe { (*self.get_os().unwrap()).myproc().ok().unwrap() as &'_ Proc<'_> }
+    }
+
+    #[inline]
+    fn proc_ref_mut(&mut self) -> &'a mut Proc<'a> {
+        unsafe { (*self.get_os().unwrap()).myproc().ok().unwrap() }
     }
 }

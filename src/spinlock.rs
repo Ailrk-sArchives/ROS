@@ -1,12 +1,12 @@
-use super::proc::{Cpu, OSFetch, OSRefField, State};
+use super::proc::{Cpu, OSFetch, State};
 use super::riscv;
 
 #[derive(Default)]
 pub struct SpinLock<'a> {
+    os: Option<*mut State<'a>>,
     pub locked: bool,
     pub name: &'a str,
     pub cpu: Option<&'a mut Cpu<'a>>,
-    os: Option<*mut State<'a>>,
 }
 
 // identity check. Compare pointer since rust doesn't have
@@ -18,13 +18,11 @@ impl<'a> PartialEq for SpinLock<'a> {
     }
 }
 
-impl<'a> OSRefField<'a> for SpinLock<'a> {
+impl<'a> OSFetch<'a> for SpinLock<'a> {
     fn get_os(&mut self) -> Option<*mut State<'a>> {
         self.os
     }
 }
-
-impl<'a> OSFetch<'a> for SpinLock<'a> {}
 
 impl<'a> SpinLock<'a> {
     pub fn new(name: &'a str, os: Option<*mut State<'a>>) -> SpinLock<'a> {
@@ -39,7 +37,7 @@ impl<'a> SpinLock<'a> {
     // acquire the lock.
     // Loops (spins) until the lock is acquired.
     pub fn acquire(&mut self) {
-        push_off(); // disable interrupts to avoid deadlock.
+        push_off(self); // disable interrupts to avoid deadlock.
         if self.holding() {
             panic!("acquire");
         }
@@ -49,7 +47,7 @@ impl<'a> SpinLock<'a> {
         while riscv::SYNC::lock_test_and_set(&mut self.locked, true) {}
 
         riscv::SYNC::synchronize();
-        self.cpu = Some(self.get_cpu_ref_mut());
+        self.cpu = Some(self.cpu_ref_mut());
     }
 
     // release the lock
@@ -63,21 +61,21 @@ impl<'a> SpinLock<'a> {
         riscv::SYNC::synchronize();
 
         riscv::SYNC::lock_release(&mut self.locked);
-        pop_off();
+        pop_off(self);
     }
 
     // check whether this cpu is holding the lock.
-    pub fn holding(&self) -> bool {
-        push_off();
+    pub fn holding(&mut self) -> bool {
+        push_off(self.os_ref_mut());
         let r = self.locked
             && self
                 .cpu
-                .map(|val| unsafe {
-                    let cpu = self.get_cpu_ref() as *const Cpu as *const ();
+                .map(|val| {
+                    let cpu = self.cpu_ref() as *const Cpu as *const ();
                     val as *const Cpu as *const () == cpu
                 })
                 .unwrap_or(false);
-        pop_off();
+        pop_off(self.os_ref_mut());
         r
     }
 }
@@ -86,18 +84,18 @@ impl<'a> SpinLock<'a> {
 // matched:
 // it takes two pop_off() to undo two push_off()s. Also, if interrrupts
 // are initially off, then push_off, pop_off leaves them off.
-
-pub fn push_off() {
+pub fn push_off<'a>(state: &'a mut State<'a>) -> Option<&'a mut State<'a>> {
     let old = riscv::DEV_INTR::get();
     riscv::DEV_INTR::off();
-    if mycpu().noff == 0 {
-        mycpu().intena = old;
+    if state.cpu_ref().noff == 0 {
+        state.cpu_ref_mut().intena = old;
     }
-    mycpu().noff += 1;
+    state.cpu_ref_mut().noff += 1;
+    Some(state)
 }
 
-pub fn pop_off() {
-    let c = mycpu();
+pub fn pop_off<'a>(state: &'a mut State<'a>) {
+    let c = state.cpu_ref_mut();
     if riscv::DEV_INTR::get() {
         panic!("pop off - interruptible");
     }
@@ -111,3 +109,4 @@ pub fn pop_off() {
         riscv::DEV_INTR::on();
     }
 }
+
