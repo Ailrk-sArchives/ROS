@@ -1,7 +1,7 @@
 use super::spinlock;
 
-const pipesize: usize = 512;
-pub struct PipeData([u8; pipesize]);
+const PIPESIZE: usize = 512;
+pub struct PipeData([u8; PIPESIZE]);
 
 impl Default for PipeData {
     fn default() -> Self {
@@ -16,6 +16,5 @@ pub struct Pipe<'a> {
     nread: u32,     // num of bytes read
     nwrite: u32,    // num of bytes written
     readopen: i32,  // read fd is still open
-    writeopen: i32,  // write fd is still open
+    writeopen: i32, // write fd is still open
 }
-

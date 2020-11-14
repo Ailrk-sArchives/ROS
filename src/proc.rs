@@ -7,7 +7,7 @@ use super::riscv;
 use super::spinlock;
 
 #[derive(Default)]
-pub struct Cpus<'a>([Cpu<'a>; params::NCPU]);
+pub struct Cpus<'a, 'proc: 'a>([Cpu<'a, 'proc>; params::NCPU]);
 
 pub struct Procs<'a>([Proc<'a>; params::NPROC]);
 impl<'a> Default for Procs<'a> {
@@ -40,11 +40,11 @@ pub struct Context {
 
 // state of each CPU
 #[derive(Default)]
-pub struct Cpu<'a> {
+pub struct Cpu<'a, 'proc: 'a> {
     pub proc: Option<&'a mut Proc<'a>>, // the process run on cpu.
-    pub scheduler: Context,             // switch to enter scheduler.
-    pub noff: i32,                      // depth of push_off() nesting.
-    pub intena: bool,                   // interrups flag
+    pub scheduler: Context,                   // switch to enter scheduler.
+    pub noff: i32,                            // depth of push_off() nesting.
+    pub intena: bool,                         // interrups flag
 }
 
 // per-process data for trap for handling code in trampoline.S
@@ -114,6 +114,7 @@ pub enum ProcState {
     Running,
     Zombie,
 }
+
 impl Default for ProcState {
     fn default() -> Self {
         ProcState::Unused
@@ -129,12 +130,12 @@ impl Default for ProcState {
 //                    calling `sret` (lower hw privilege).
 // run state.       for scheduling
 #[derive(Default)]
-pub struct Proc<'a> {
-    os: Option<*mut State<'a>>,
+pub struct Proc<'a, 'b> {
+    os: Option<*mut State<'static>>,
     pub lock: spinlock::SpinLock<'a>,
 
     pub state: ProcState, // process state
-    pub parent: Option<&'a Proc<'a>>,
+    pub parent: Option<&'a Proc<'a, 'b>>,
     pub chan: Option<*const ()>, // if non zero, sleep on chan
     pub killed: bool,            // kill flag
     pub xstate: bool,            // exit status
@@ -145,20 +146,20 @@ pub struct Proc<'a> {
     pub pagetable: riscv::Pagetable,   // page table
     pub tf: Option<&'a mut Trapframe>, // data page for trampoline.S
     pub context: Context,              // switch() here to run process
-    pub ofile: Option<&'a mut OpenFileBufferes<'a>>, // open files
-    pub cwd: Option<&'a mut Inode<'a>>, // current directory.
+    pub ofile: Option<&'a mut OpenFileBufferes<'b>>, // open files
+    pub cwd: Option<&'a mut Inode<'b>>, // current directory.
     pub name: &'a str,                 // proc name (debugging)
 }
 
 // process can access the OS state.
-impl<'a> OSFetch<'a> for Proc<'a> {
+impl<'a, 'b> OSFetch for Proc<'a, 'b> {
     fn get_os(&mut self) -> Option<*mut State<'a>> {
         self.os
     }
 }
 
-impl<'a> Proc<'a> {
-    pub fn new() -> Proc<'a> {
+impl<'a, 'b> Proc<'a, 'b> {
+    pub fn new() -> Proc<'a, 'b> {
         unimplemented!();
     }
 
@@ -190,20 +191,20 @@ pub struct State<'a> {
     procs: Procs<'a>,
     initproc: InitProc<'a>,
     nextpid: i32,
-    pidLock: spinlock::SpinLock<'a>,
+    pid_lock: spinlock::SpinLock<'a>,
 }
 
-impl<'a> State<'a> {
-    pub fn new() -> State<'a> {
+impl State<'_> {
+    pub fn new<'a>() -> State<'a> {
         let mut state = State {
             cpus: Default::default(),
             procs: Default::default(),
             initproc: InitProc(Proc::new()),
             nextpid: 1,
-            pidLock: Default::default(),
+            pid_lock: Default::default(),
         };
-        let stateptr = Some(&mut state as *mut State<'a>);
-        state.pidLock = spinlock::SpinLock::new("nexPid", stateptr);
+        let stateptr = Some(&mut state as *mut State<'_>);
+        state.pid_lock = spinlock::SpinLock::new("nexPid", stateptr);
         state
     }
 
@@ -213,7 +214,7 @@ impl<'a> State<'a> {
         riscv::REGS::TP::read()
     }
 
-    pub fn mycpu(&mut self) -> Result<&'_ mut Cpu<'a>, StateErr> {
+    pub fn mycpu(&mut self) -> Result<&'_ mut Cpu<'_>, StateErr> {
         let id = self.cpuid() as usize;
         match self.cpus {
             // borrow Option content in Cpus
@@ -222,8 +223,8 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn myproc(&mut self) -> Result<&'a mut Proc<'a>, StateErr> {
-        let mut result: Result<&'a mut Proc<'a>, StateErr>;
+    pub fn myproc(&mut self) -> Result<&'_ mut Proc<'_>, StateErr> {
+        let mut result: Result<&'_ mut Proc<'_>, StateErr>;
         self.push_off()
             .sdo(|state| {
                 let proc = state.mycpu().ok().unwrap().proc.unwrap();
@@ -234,10 +235,10 @@ impl<'a> State<'a> {
     }
 
     pub fn allocpid(&mut self) -> i32 {
-        self.pidLock.acquire();
+        self.pid_lock.acquire();
         self.nextpid = self.nextpid + 1;
         let pid = self.nextpid;
-        self.pidLock.release();
+        self.pid_lock.release();
         pid
     }
 
@@ -288,44 +289,45 @@ impl<'a> State<'a> {
     }
 }
 
-impl<'a> OSFetch<'a> for State<'a> {
-    fn get_os(&mut self) -> Option<*mut State<'a>> {
+impl OSFetch for State<'_> {
+    fn get_os(&mut self) -> Option<*mut State> {
         return Some(self as *mut _);
     }
 }
 
 // fetch state element easier.
 // all structs that can fetch os will have a definite size.
-pub trait OSFetch<'a>: Sized {
-    fn get_os(&mut self) -> Option<*mut State<'a>>;
+pub trait OSFetch: Sized {
+    fn get_os(&mut self) -> Option<*mut State>;
 
     #[inline]
-    fn os_ref(&mut self) -> &'a State<'a> {
+    fn os_ref(&mut self) -> &'_ State {
         unsafe { self.get_os().unwrap().as_ref().unwrap() }
     }
 
     #[inline]
-    fn os_ref_mut(&mut self) -> &'a mut State<'a> {
+    fn os_ref_mut(&mut self) -> &'_ mut State {
         unsafe { self.get_os().unwrap().as_mut().unwrap() }
     }
 
     #[inline]
-    fn cpu_ref(&mut self) -> &'a Cpu<'a> {
+    fn cpu_ref(&mut self) -> &'_ Cpu {
         unsafe { (*self.get_os().unwrap()).mycpu().ok().unwrap() as &'_ Cpu<'_> }
     }
 
     #[inline]
-    fn cpu_ref_mut(&mut self) -> &'a mut Cpu<'a> {
+    fn cpu_ref_mut(&mut self) -> &'_ mut Cpu {
         unsafe { (*self.get_os().unwrap()).mycpu().ok().unwrap() }
     }
 
     #[inline]
-    fn proc_ref(&mut self) -> &'a Proc<'a> {
-        unsafe { (*self.get_os().unwrap()).myproc().ok().unwrap() as &'_ Proc<'_> }
+    fn proc_ref(&mut self) -> &'_ Proc {
+        unsafe { (*self.get_os().unwrap()).myproc().ok().unwrap() as &'_ Proc }
     }
 
     #[inline]
-    fn proc_ref_mut(&mut self) -> &'a mut Proc<'a> {
+    fn proc_ref_mut(&mut self) -> &'_ mut Proc {
         unsafe { (*self.get_os().unwrap()).myproc().ok().unwrap() }
     }
 }
+
